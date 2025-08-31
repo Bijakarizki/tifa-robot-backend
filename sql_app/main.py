@@ -25,17 +25,20 @@ def read_root():
     return {"message": "Welcome to TIFA Robot Control API"}
 
 # === API MEJA ===
+# --- PERUBAHAN DI SINI ---
 @app.post("/tables/", response_model=schemas.TableCreate, tags=["Tables"])
 def create_table(table: schemas.TableCreate):
+    # Cek duplikat tetap berjalan seperti biasa
     existing_table = crud.get_table_by_name(table_name=table.table_number)
     if existing_table:
         raise HTTPException(status_code=400, detail="Table with this number already exists")
     
-    new_table = crud.create_table(table=table)
-    if not new_table:
-        raise HTTPException(status_code=500, detail="Failed to create table")
+    # Panggil fungsi create yang sudah disederhanakan
+    crud.create_table(table=table)
         
-    return new_table
+    # Kembalikan data yang dikirim oleh klien sebagai konfirmasi bahwa data sudah diterima
+    return table
+
 
 @app.get("/tables/", response_model=List[schemas.TableResponse], tags=["Tables"])
 def read_tables(skip: int = 0, limit: int = 100):
@@ -57,6 +60,7 @@ def delete_table(table_id: int):
     return {"ok": True, "message": "Table deleted successfully"}
 
 # === API PESANAN ===
+# ... (sisa kode tetap sama) ...
 @app.post("/orders/", response_model=List[schemas.OrderResponse], tags=["Orders"])
 def create_orders(orders: List[schemas.OrderCreate]):
     return crud.create_orders_bulk(orders=orders)
@@ -85,3 +89,4 @@ def delete_order(order_id: int):
     if db_order is None:
         raise HTTPException(status_code=404, detail="Order not found")
     return {"ok": True, "message": "Order deleted successfully"}
+
