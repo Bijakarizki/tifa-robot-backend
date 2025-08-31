@@ -1,6 +1,7 @@
 import os
 import requests
 from dotenv import load_dotenv
+from fastapi import HTTPException 
 
 # Muat variabel dari file .env
 load_dotenv()
@@ -38,7 +39,10 @@ def execute_query(sql_query: str, params: list = None):
         else:
             error_details = data.get("errors", [{}])[0].get("message", "Unknown D1 error")
             print(f"Cloudflare D1 Error: {error_details}")
-            return None
+            # PERBAIKAN 2: Jangan return None, lempar error yang jelas
+            raise HTTPException(status_code=500, detail=f"Cloudflare D1 Error: {error_details}")
+
     except requests.exceptions.RequestException as e:
         print(f"Terjadi error HTTP: {e}")
-        return None
+        # PERBAIKAN 3: Jangan return None, lempar error yang jelas
+        raise HTTPException(status_code=500, detail=f"HTTP Request Error: {e}")
