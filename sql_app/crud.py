@@ -17,14 +17,15 @@ def get_tables(skip: int = 0, limit: int = 100):
     sql = "SELECT * FROM tables LIMIT ? OFFSET ?;"
     return execute_query(sql, params=[limit, skip])
 
+# --- PERUBAHAN DI FUNGSI INI ---
 def create_table(table: schemas.TableCreate):
-    # Langkah 1: Masukkan data baru
+    """Hanya menjalankan INSERT dan tidak membaca kembali data."""
     sql_insert = "INSERT INTO tables (table_number, coordinates) VALUES (?, ?);"
     params = [table.table_number, table.coordinates]
+    # Kita asumsikan jika tidak ada error, maka operasi berhasil.
+    # execute_query akan memunculkan error jika gagal.
     execute_query(sql_insert, params=params)
-    
-    # Langkah 2: Ambil kembali data tersebut menggunakan table_number yang unik
-    return get_table_by_name(table.table_number)
+    return True # Kembalikan status sukses sederhana
 
 def delete_table(table_id: int):
     table_to_delete = get_table(table_id)

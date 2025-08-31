@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict, Any
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -10,7 +10,8 @@ app = FastAPI(
     version="2.0.0",
 )
 
-origins = ["http://localhost", "http://localhost:3000"]
+# ... (middleware tetap sama) ...
+origins = ["*"] # Izinkan semua untuk testing
 
 app.add_middleware(
     CORSMiddleware,
@@ -20,16 +21,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to TIFA Robot Control API"}
+
 # === API MEJA ===
-@app.post("/tables/", response_model=schemas.TableResponse, tags=["Tables"])
+
+# --- PERUBAHAN DI ENDPOINT INI ---
+@app.post("/tables/", response_model=Dict[str, Any], tags=["Tables"])
 def create_table(table: schemas.TableCreate):
+    """Membuat meja baru dan mengembalikan data input sebagai konfirmasi."""
     existing_table = crud.get_table_by_name(table_name=table.table_number)
     if existing_table:
         raise HTTPException(status_code=400, detail="Table with this number already exists")
-    new_table = crud.create_table(table=table)
-    if not new_table:
-        raise HTTPException(status_code=500, detail="Failed to create table")
-    return new_table
+    
+    # Panggil fungsi crud yang sudah diperbarui
+    success = crud.create_table(table=table)
+    
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to create table in database")
+    
+    # Kembalikan dictionary sederhana sebagai konfirmasi, Flutter akan refresh list
+    return {"ok": True, "message": "Table created successfully", "data": table.dict()}
 
 @app.get("/tables/", response_model=List[schemas.TableResponse], tags=["Tables"])
 def read_tables(skip: int = 0, limit: int = 100):
