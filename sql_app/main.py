@@ -24,26 +24,53 @@ app.add_middleware(
 def read_root():
     return {"message": "Welcome to TIFA Robot Control API"}
 
+# === ENDPOINT TEST UNTUK DEBUGGING ===
+@app.get("/test/db", tags=["Debug"])
+def test_database():
+    """Test koneksi database dengan query sederhana"""
+    try:
+        from .database import execute_query
+        result = execute_query("SELECT 1 as test;")
+        return {"success": True, "result": result}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.get("/test/tables-raw", tags=["Debug"])
+def test_tables_raw():
+    """Test query tabel secara langsung"""
+    try:
+        from .database import execute_query
+        result = execute_query("SELECT * FROM tables;")
+        return {"success": True, "result": result, "count": len(result)}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 # === API MEJA ===
-# --- PERUBAHAN DI SINI ---
-@app.post("/tables/", response_model=schemas.TableCreate, tags=["Tables"])
+@app.post("/tables/", response_model=schemas.TableResponse, tags=["Tables"])
 def create_table(table: schemas.TableCreate):
-    # Cek duplikat tetap berjalan seperti biasa
+    print(f"POST /tables/ called with data: {table}")
+    
+    # Cek duplikat
     existing_table = crud.get_table_by_name(table_name=table.table_number)
     if existing_table:
         raise HTTPException(status_code=400, detail="Table with this number already exists")
     
-    # Panggil fungsi create yang sudah disederhanakan
-    crud.create_table(table=table)
+    # Buat table
+    new_table = crud.create_table(table=table)
+    
+    # Pastikan data berhasil dibuat
+    if not new_table:
+        raise HTTPException(status_code=500, detail="Failed to create table")
         
-    # Kembalikan data yang dikirim oleh klien sebagai konfirmasi bahwa data sudah diterima
-    return table
-
+    print(f"Created table response: {new_table}")
+    return new_table
 
 @app.get("/tables/", response_model=List[schemas.TableResponse], tags=["Tables"])
 def read_tables(skip: int = 0, limit: int = 100):
-    return crud.get_tables(skip=skip, limit=limit)
-
+    print(f"GET /tables/ called with skip={skip}, limit={limit}")
+    tables = crud.get_tables(skip=skip, limit=limit)
+    print(f"Found {len(tables)} tables: {tables}")
+    return tables
 
 @app.get("/tables/{table_id}", response_model=schemas.TableResponse, tags=["Tables"])
 def read_table(table_id: int):
@@ -60,7 +87,6 @@ def delete_table(table_id: int):
     return {"ok": True, "message": "Table deleted successfully"}
 
 # === API PESANAN ===
-# ... (sisa kode tetap sama) ...
 @app.post("/orders/", response_model=List[schemas.OrderResponse], tags=["Orders"])
 def create_orders(orders: List[schemas.OrderCreate]):
     return crud.create_orders_bulk(orders=orders)
@@ -89,4 +115,3 @@ def delete_order(order_id: int):
     if db_order is None:
         raise HTTPException(status_code=404, detail="Order not found")
     return {"ok": True, "message": "Order deleted successfully"}
-
