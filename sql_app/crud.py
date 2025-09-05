@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from . import models, schemas
 
-# === Fungsi untuk Tabel (Tables) ===
+# === Functions for Tables ===
 
 def get_table(db: Session, table_id: int):
     return db.query(models.Table).filter(models.Table.id == table_id).first()
@@ -15,23 +15,23 @@ def get_tables(db: Session, skip: int = 0, limit: int = 100):
 
 def create_table(db: Session, table: schemas.TableCreate):
     """
-    Membuat meja baru dengan memvalidasi terlebih dahulu ke tabel master 'predefined_tables'.
+    Creates a new table by first validating against the 'predefined_tables' master table.
     """
     table_number_to_add = table.table_number
 
-    # Langkah 1: Query ke tabel master untuk mencari meja yang diminta.
+    # Step 1: Query the master table for the requested table.
     predefined_table = db.query(models.PredefinedTable).filter(
         models.PredefinedTable.table_number == table_number_to_add
     ).first()
 
-    # Langkah 2: Jika tidak ditemukan di tabel master, tolak permintaan.
+    # Step 2: If not found in the master table, reject the request.
     if not predefined_table:
         raise HTTPException(
             status_code=400,
             detail=f"Table '{table_number_to_add}' is not a valid predefined table."
         )
 
-    # Langkah 3: Cek apakah meja ini sudah pernah ditambahkan sebelumnya di tabel 'tables'.
+    # Step 3: Check if this table has already been added to the 'tables' table.
     existing_table = get_table_by_name(db, table_name=table_number_to_add)
     if existing_table:
         raise HTTPException(
@@ -39,10 +39,10 @@ def create_table(db: Session, table: schemas.TableCreate):
             detail=f"Table '{table_number_to_add}' has already been added."
         )
 
-    # Langkah 4: Jika valid dan belum ada, buat entri baru di tabel 'tables'.
+    # Step 4: If valid and not yet present, create the new entry in the 'tables' table.
     db_table = models.Table(
         table_number=predefined_table.table_number,
-        coordinates=predefined_table.coordinates  # Ambil koordinat dari tabel master
+        coordinates=predefined_table.coordinates  # Get coordinates from the master table
     )
     db.add(db_table)
     db.commit()
@@ -57,10 +57,24 @@ def delete_table(db: Session, table_id: int):
         return db_table
     return None
 
-# === Fungsi untuk Pesanan (Orders) ===
+# === Functions for Orders ===
 
 def get_order(db: Session, order_id: int):
     return db.query(models.Order).filter(models.Order.id == order_id).first()
 
 def get_orders(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Order).offset(skip).limit(limit).all()
+
+# (NEW) Function to create a new order
+def create_order(db: Session, order: schemas.OrderCreate):
+    """Creates a new order entry in the database."""
+    db_order = models.Order(
+        order_number=order.order_number,
+        table_number=order.table_number,
+        status=0  # Default status: 0 for 'New'
+    )
+    db.add(db_order)
+    db.commit()
+    db.refresh(db_order)
+    return db_order
+

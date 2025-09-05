@@ -9,6 +9,7 @@ from .database import engine, get_db
 
 # Baris ini akan membuat tabel di database Supabase Anda
 # jika belum ada, berdasarkan definisi di models.py
+# Ini termasuk tabel 'tables', 'orders', dan 'predefined_tables'
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
@@ -36,18 +37,16 @@ def read_root():
 @app.post("/tables/", response_model=schemas.TableResponse, tags=["Tables"])
 def create_table(table: schemas.TableCreate, db: Session = Depends(get_db)):
     """
-    Endpoint untuk membuat meja baru.
-    Akan mengecek apakah nomor meja sudah ada sebelum membuat.
+    Endpoint untuk menambahkan meja yang sudah terdaftar di 'predefined_tables'
+    ke dalam daftar meja aktif.
     """
-    db_table = crud.get_table_by_name(db, table_name=table.table_number)
-    if db_table:
-        raise HTTPException(status_code=400, detail="Table with this number already exists")
+    # Semua logika validasi dan pengecekan duplikat sekarang ada di dalam crud.create_table
     return crud.create_table(db=db, table=table)
 
 @app.get("/tables/", response_model=List[schemas.TableResponse], tags=["Tables"])
 def read_tables(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     """
-    Endpoint untuk mengambil daftar semua meja.
+    Endpoint untuk mengambil daftar meja yang aktif.
     """
     tables = crud.get_tables(db, skip=skip, limit=limit)
     return tables
@@ -55,7 +54,7 @@ def read_tables(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
 @app.get("/tables/{table_id}", response_model=schemas.TableResponse, tags=["Tables"])
 def read_table(table_id: int, db: Session = Depends(get_db)):
     """
-    Endpoint untuk mengambil detail satu meja berdasarkan ID.
+    Endpoint untuk mengambil detail satu meja aktif berdasarkan ID.
     """
     db_table = crud.get_table(db, table_id=table_id)
     if db_table is None:
@@ -65,7 +64,7 @@ def read_table(table_id: int, db: Session = Depends(get_db)):
 @app.delete("/tables/{table_id}", tags=["Tables"])
 def delete_table(table_id: int, db: Session = Depends(get_db)):
     """
-    Endpoint untuk menghapus meja berdasarkan ID.
+    Endpoint untuk menghapus meja aktif berdasarkan ID.
     """
     db_table = crud.delete_table(db, table_id=table_id)
     if db_table is None:
@@ -75,6 +74,13 @@ def delete_table(table_id: int, db: Session = Depends(get_db)):
 
 # === API Pesanan (Orders) ===
 
+@app.post("/orders/", response_model=schemas.OrderResponse, tags=["Orders"])
+def create_order(order: schemas.OrderCreate, db: Session = Depends(get_db)):
+    """
+    Endpoint untuk membuat pesanan baru.
+    """
+    return crud.create_order(db=db, order=order)
+
 @app.get("/orders/", response_model=List[schemas.OrderResponse], tags=["Orders"])
 def read_orders(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     """
@@ -82,3 +88,4 @@ def read_orders(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     """
     orders = crud.get_orders(db, skip=skip, limit=limit)
     return orders
+
