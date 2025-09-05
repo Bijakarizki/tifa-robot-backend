@@ -10,7 +10,7 @@ models.Base.metadata.create_all(bind=engine)
 app = FastAPI(
     title="TIFA Robot Control API",
     description="API for managing orders and tables for the TIFA robot (Supabase Version).",
-    version="3.1.0",
+    version="3.3.0", # Versi dinaikkan
 )
 
 app.add_middleware(
@@ -36,16 +36,12 @@ def read_tables(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
 
 # === API Pesanan (Orders) ===
 
-@app.post("/orders/", response_model=schemas.OrderResponse, tags=["Orders"])
-def create_order(order: schemas.OrderCreate, db: Session = Depends(get_db)):
-    return crud.create_order(db=db, order=order)
-
-# (BARU) Endpoint untuk membuat pesanan secara bulk
+# Endpoint untuk membuat pesanan secara bulk
 @app.post("/orders/bulk", response_model=List[schemas.OrderResponse], tags=["Orders"])
 def create_orders_bulk(bulk_data: schemas.OrderCreateBulk, db: Session = Depends(get_db)):
     """
     Endpoint untuk membuat beberapa pesanan sekaligus.
-    Status pesanan akan otomatis diatur menjadi 0 (Baru).
+    Status pesanan akan otomatis diatur menjadi 0 (Siap Antar).
     """
     return crud.create_orders_bulk(db=db, orders=bulk_data.orders)
 
@@ -53,11 +49,12 @@ def create_orders_bulk(bulk_data: schemas.OrderCreateBulk, db: Session = Depends
 def read_orders(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     return crud.get_orders(db, skip=skip, limit=limit)
 
-# (BARU) Endpoint untuk update status pesanan
+# Endpoint untuk update status pesanan
 @app.patch("/orders/{order_id}/status", response_model=schemas.OrderResponse, tags=["Orders"])
 def update_order_status(order_id: int, status_update: schemas.OrderUpdateStatus, db: Session = Depends(get_db)):
     """
     Endpoint untuk mengubah status pesanan.
-    Contoh: status=1 (Diantar), status=2 (Selesai).
+    Robot akan mengubah status dari 0 -> 1.
+    Frontend akan mengubah status dari 1 -> 2.
     """
     return crud.update_order_status(db, order_id=order_id, new_status=status_update.status)

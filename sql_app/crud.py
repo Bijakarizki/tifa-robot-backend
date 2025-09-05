@@ -42,7 +42,6 @@ def get_order(db: Session, order_id: int):
     return db.query(models.Order).filter(models.Order.id == order_id).first()
 
 def get_orders(db: Session, skip: int = 0, limit: int = 100):
-    # Mengurutkan berdasarkan ID terbaru
     return db.query(models.Order).order_by(models.Order.id.desc()).offset(skip).limit(limit).all()
 
 def create_order(db: Session, order: schemas.OrderCreate):
@@ -52,21 +51,21 @@ def create_order(db: Session, order: schemas.OrderCreate):
     db.refresh(db_order)
     return db_order
 
-# (BARU) Fungsi untuk membuat banyak pesanan sekaligus
+# (DIUBAH) Fungsi untuk membuat banyak pesanan sekaligus
 def create_orders_bulk(db: Session, orders: List[schemas.OrderCreate]):
     created_orders = []
     for order_data in orders:
-        # Status 0 = Pesanan baru, siap diantar
+        # DIUBAH KEMBALI: Status diatur ke 0 (Siap Antar)
+        # Ini adalah status yang akan dibaca oleh robot.
         db_order = models.Order(**order_data.model_dump(), status=0)
         db.add(db_order)
         created_orders.append(db_order)
     db.commit()
-    # Me-refresh setiap order untuk mendapatkan ID dari database
     for db_order in created_orders:
         db.refresh(db_order)
     return created_orders
 
-# (BARU) Fungsi untuk update status pesanan
+# Fungsi untuk update status pesanan
 def update_order_status(db: Session, order_id: int, new_status: int):
     db_order = get_order(db, order_id)
     if not db_order:
