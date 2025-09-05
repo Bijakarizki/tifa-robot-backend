@@ -1,80 +1,50 @@
-from .database import execute_query
-from . import schemas
+from sqlalchemy.orm import Session
+from . import models, schemas
 
-def get_table(table_id: int):
-    sql = "SELECT id, table_number, coordinates FROM tables WHERE id = ?;"
-    results = execute_query(sql, params=[table_id])
-    return results[0] if results else None
+# === Fungsi untuk Tabel (Tables) ===
 
-def get_table_by_name(table_name: str):
-    sql = "SELECT id, table_number, coordinates FROM tables WHERE table_number = ?;"
-    results = execute_query(sql, params=[table_name])
-    return results[0] if results else None
+def get_table(db: Session, table_id: int):
+    """Mengambil satu meja berdasarkan ID-nya."""
+    return db.query(models.Table).filter(models.Table.id == table_id).first()
 
-def get_tables(skip: int = 0, limit: int = 100):
-    sql = "SELECT id, table_number, coordinates FROM tables LIMIT ? OFFSET ?;"
-    return execute_query(sql, params=[limit, skip])
+def get_table_by_name(db: Session, table_name: str):
+    """Mengambil satu meja berdasarkan nomor mejanya."""
+    return db.query(models.Table).filter(models.Table.table_number == table_name).first()
 
-def create_table(table: schemas.TableCreate):
-    # Insert data ke database
-    sql_insert = "INSERT INTO tables (table_number, coordinates) VALUES (?, ?);"
-    params = [table.table_number, table.coordinates]
-    
-    print(f"Creating table with data: table_number={table.table_number}, coordinates={table.coordinates}")
-    
-    execute_query(sql_insert, params=params)
-    
-    # Baca kembali data yang baru dimasukkan
-    print(f"Reading back created table: {table.table_number}")
-    new_table = get_table_by_name(table.table_number)
-    
-    print(f"Created table result: {new_table}")
-    return new_table
+def get_tables(db: Session, skip: int = 0, limit: int = 100):
+    """Mengambil daftar semua meja dengan paginasi."""
+    return db.query(models.Table).offset(skip).limit(limit).all()
 
-def delete_table(table_id: int):
-    table_to_delete = get_table(table_id)
-    if not table_to_delete:
-        return None
-    sql = "DELETE FROM tables WHERE id = ?;"
-    execute_query(sql, params=[table_id])
-    return table_to_delete
+def create_table(db: Session, table: schemas.TableCreate):
+    """Membuat entri meja baru di database."""
+    # Membuat objek model SQLAlchemy dari data Pydantic
+    db_table = models.Table(
+        table_number=table.table_number,
+        coordinates=table.coordinates
+    )
+    # Menambahkan objek ke sesi
+    db.add(db_table)
+    # Menyimpan perubahan ke database
+    db.commit()
+    # Me-refresh objek untuk mendapatkan data yang baru dibuat (seperti ID)
+    db.refresh(db_table)
+    return db_table
 
-# Orders functions
-def get_order(order_id: int):
-    sql = "SELECT id, order_number, table_number, status FROM orders WHERE id = ?;"
-    results = execute_query(sql, params=[order_id])
-    return results[0] if results else None
+def delete_table(db: Session, table_id: int):
+    """Menghapus meja dari database berdasarkan ID."""
+    db_table = get_table(db, table_id)
+    if db_table:
+        db.delete(db_table)
+        db.commit()
+        return db_table
+    return None
 
-def get_order_by_number(order_number: int):
-    sql = "SELECT id, order_number, table_number, status FROM orders WHERE order_number = ? ORDER BY id DESC LIMIT 1;"
-    results = execute_query(sql, params=[order_number])
-    return results[0] if results else None
+# === Fungsi untuk Pesanan (Orders) ===
 
-def get_orders(skip: int = 0, limit: int = 100):
-    sql = "SELECT id, order_number, table_number, status FROM orders LIMIT ? OFFSET ?;"
-    return execute_query(sql, params=[limit, skip])
+def get_order(db: Session, order_id: int):
+    """Mengambil satu pesanan berdasarkan ID-nya."""
+    return db.query(models.Order).filter(models.Order.id == order_id).first()
 
-def create_orders_bulk(orders: list[schemas.OrderCreate]):
-    created_orders = []
-    for order in orders:
-        sql_insert = "INSERT INTO orders (order_number, table_number, status) VALUES (?, ?, 0);"
-        params = [order.order_number, order.table_number]
-        execute_query(sql_insert, params=params)
-        new_order = get_order_by_number(order.order_number)
-        if new_order:
-            created_orders.append(new_order)
-    return created_orders
-
-def update_order_status(order_id: int, status: int):
-    sql_update = "UPDATE orders SET status = ? WHERE id = ?;"
-    params = [status, order_id]
-    execute_query(sql_update, params=params)
-    return get_order(order_id)
-
-def delete_order(order_id: int):
-    order_to_delete = get_order(order_id)
-    if not order_to_delete:
-        return None
-    sql = "DELETE FROM orders WHERE id = ?;"
-    execute_query(sql, params=[order_id])
-    return order_to_delete
+def get_orders(db: Session, skip: int = 0, limit: int = 100):
+    """Mengambil daftar semua pesanan dengan paginasi."""
+    return db.query(models.Order).offset(skip).limit(limit).all()
