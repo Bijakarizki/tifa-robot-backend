@@ -4,47 +4,45 @@ from . import models, schemas
 # === Fungsi untuk Tabel (Tables) ===
 
 def get_table(db: Session, table_id: int):
-    """Mengambil satu meja berdasarkan ID-nya."""
     return db.query(models.Table).filter(models.Table.id == table_id).first()
 
 def get_table_by_name(db: Session, table_name: str):
-    """Mengambil satu meja berdasarkan nomor mejanya."""
     return db.query(models.Table).filter(models.Table.table_number == table_name).first()
 
 def get_tables(db: Session, skip: int = 0, limit: int = 100):
-    """Mengambil daftar semua meja dengan paginasi."""
     return db.query(models.Table).offset(skip).limit(limit).all()
 
+# FUNGSI INI DIUBAH
 def create_table(db: Session, table: schemas.TableCreate):
-    """Membuat entri meja baru di database."""
-    # Membuat objek model SQLAlchemy dari data Pydantic
+    # --- LOGIKA BARU UNTUK MENENTUKAN KOORDINAT ---
+    # Di sini Anda bisa menambahkan logika yang lebih kompleks.
+    # Misalnya, mencari nomor meja di dalam sebuah dictionary
+    # untuk mendapatkan koordinat yang sudah ditentukan sebelumnya.
+    # Untuk saat ini, kita gunakan nilai default.
+    default_coordinates = "0,0"
+    # -----------------------------------------------
+
     db_table = models.Table(
         table_number=table.table_number,
-        coordinates=table.coordinates
+        coordinates=default_coordinates  # Menggunakan nilai yang ditentukan di backend
     )
-    # Menambahkan objek ke sesi
     db.add(db_table)
-    # Menyimpan perubahan ke database
     db.commit()
-    # Me-refresh objek untuk mendapatkan data yang baru dibuat (seperti ID)
     db.refresh(db_table)
     return db_table
 
 def delete_table(db: Session, table_id: int):
-    """Menghapus meja dari database berdasarkan ID."""
-    db_table = get_table(db, table_id)
+    db_table = db.query(models.Table).filter(models.Table.id == table_id).first()
     if db_table:
         db.delete(db_table)
         db.commit()
         return db_table
     return None
 
-# === Fungsi untuk Pesanan (Orders) ===
+# === Fungsi untuk Pesanan (Orders) (tetap sama) ===
 
 def get_order(db: Session, order_id: int):
-    """Mengambil satu pesanan berdasarkan ID-nya."""
     return db.query(models.Order).filter(models.Order.id == order_id).first()
 
 def get_orders(db: Session, skip: int = 0, limit: int = 100):
-    """Mengambil daftar semua pesanan dengan paginasi."""
     return db.query(models.Order).offset(skip).limit(limit).all()

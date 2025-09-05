@@ -1,23 +1,30 @@
 from pydantic import BaseModel
 
 # --- Skema untuk Tabel ---
+
 class TableBase(BaseModel):
     table_number: str
-    # Diubah dari int menjadi str
     coordinates: str
 
-class TableCreate(TableBase):
-    pass
+# DIUBAH: Skema ini sekarang hanya berisi table_number.
+# FastAPI akan menggunakan ini untuk memvalidasi request body dari frontend.
+class TableCreate(BaseModel):
+    table_number: str
 
 class TableResponse(TableBase):
     id: int
-    class Config:
-        orm_mode = True
 
-# --- Skema untuk Pesanan ---
+    class Config:
+        # Pydantic v2 menggunakan `from_attributes` bukan `orm_mode`
+        # Namun, kita biarkan `orm_mode` untuk kompatibilitas jika Pydantic Anda v1
+        orm_mode = True
+        from_attributes = True
+
+
+# --- Skema untuk Pesanan (tetap sama) ---
+
 class OrderBase(BaseModel):
     order_number: int
-    # tray_position dihapus
     table_number: str
 
 class OrderCreate(OrderBase):
@@ -29,5 +36,7 @@ class OrderUpdateStatus(BaseModel):
 class OrderResponse(OrderBase):
     id: int
     status: int
+
     class Config:
         orm_mode = True
+        from_attributes = True
