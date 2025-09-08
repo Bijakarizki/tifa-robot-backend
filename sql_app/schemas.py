@@ -1,5 +1,7 @@
 from pydantic import BaseModel
-from typing import List
+from typing import List, Dict, Any
+from datetime import datetime
+from enum import Enum
 
 # --- Skema untuk Tabel ---
 
@@ -35,5 +37,40 @@ class OrderUpdateStatus(BaseModel):
 class OrderResponse(OrderBase):
     id: int
     status: int
+    class Config:
+        from_attributes = True
+
+
+# --- (SKEMA BARU UNTUK NAVIGATION GOALS) ---
+
+# Enum untuk validasi status
+class GoalStatus(str, Enum):
+    QUEUED = "queued"
+    RUNNING = "running"
+    DONE = "done"
+
+# Skema dasar untuk data input (tanpa ID atau timestamp)
+class NavigationGoalBase(BaseModel):
+    goal_x: float
+    goal_y: float
+    goal_yaw: float
+    frame_id: str = "map"
+    meta: Dict[str, Any] | None = None
+
+# Skema untuk membuat data baru (mewarisi dari Base)
+class NavigationGoalCreate(NavigationGoalBase):
+    pass
+
+# Skema untuk update status (mirip OrderUpdateStatus)
+class NavigationGoalUpdateStatus(BaseModel):
+    status: GoalStatus # Menggunakan Enum untuk validasi
+
+# Skema Response (apa yang dikembalikan API)
+class NavigationGoalResponse(NavigationGoalBase):
+    id: int
+    status: str # Bisa juga pakai GoalStatus
+    created_at: datetime
+    updated_at: datetime
+
     class Config:
         from_attributes = True

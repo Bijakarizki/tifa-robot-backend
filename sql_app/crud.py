@@ -74,3 +74,40 @@ def update_order_status(db: Session, order_id: int, new_status: int):
     db.commit()
     db.refresh(db_order)
     return db_order
+
+# === (FUNGSI BARU UNTUK NAVIGATION GOALS) ===
+
+def get_navigation_goal(db: Session, goal_id: int):
+    """Mengambil satu goal berdasarkan ID"""
+    return db.query(models.NavigationGoal).filter(models.NavigationGoal.id == goal_id).first()
+
+def get_navigation_goals_by_status(db: Session, status: str, skip: int = 0, limit: int = 100):
+    """Mengambil daftar goals berdasarkan status"""
+    return db.query(models.NavigationGoal).filter(models.NavigationGoal.status == status).order_by(models.NavigationGoal.created_at.asc()).offset(skip).limit(limit).all()
+
+def get_all_navigation_goals(db: Session, skip: int = 0, limit: int = 100):
+    """Mengambil semua goals (diurutkan dari yang terbaru)"""
+    return db.query(models.NavigationGoal).order_by(models.NavigationGoal.id.desc()).offset(skip).limit(limit).all()
+
+def create_navigation_goal(db: Session, goal: schemas.NavigationGoalCreate):
+    """Membuat navigation goal baru (status otomatis 'queued')"""
+    db_goal = models.NavigationGoal(
+        **goal.model_dump(),
+        status="queued"  # Status default saat pembuatan
+    )
+    db.add(db_goal)
+    db.commit()
+    db.refresh(db_goal)
+    return db_goal
+
+def update_navigation_goal_status(db: Session, goal_id: int, new_status: schemas.GoalStatus):
+    """Memperbarui status navigation goal"""
+    db_goal = get_navigation_goal(db, goal_id)
+    if not db_goal:
+        raise HTTPException(status_code=404, detail="Navigation Goal not found")
+    
+    # new_status akan berupa enum, kita ambil nilainya (string)
+    db_goal.status = new_status.value 
+    db.commit()
+    db.refresh(db_goal)
+    return db_goal
