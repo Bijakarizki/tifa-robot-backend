@@ -71,8 +71,6 @@ def update_order_status(db: Session, order_id: int, new_status: schemas.OrderSta
 
 # === Fungsi untuk Navigation Goals ===
 
-# (INI FUNGSI YANG HILANG)
-# Fungsi ini dibutuhkan oleh fungsi di bawahnya.
 def get_navigation_goal(db: Session, goal_id: int):
     """Fungsi pembantu untuk mengambil satu goal berdasarkan ID."""
     return db.query(models.NavigationGoal).filter(models.NavigationGoal.id == goal_id).first()
@@ -87,9 +85,13 @@ def update_navigation_goal_status(db: Session, goal_id: int, new_status: schemas
     if not db_goal:
         raise HTTPException(status_code=404, detail="Navigation Goal not found")
 
+    # 1. Status di tabel navigation_goals diubah
     db_goal.status = new_status.value
 
+    # 2. (INI BAGIAN PENTINGNYA)
+    #    Jika goal ini terhubung ke sebuah order...
     if db_goal.order:
+        # ...maka status di tabel orders juga ikut diubah agar sama.
         db_goal.order.status = new_status.value
         
     db.commit()
@@ -101,7 +103,6 @@ def update_navigation_goal_meta(db: Session, goal_id: int, meta_data: schemas.Na
     Memperbarui kolom 'meta' dari sebuah navigation goal.
     Ini bisa digunakan oleh robot untuk menyimpan log atau status internal.
     """
-    # Fungsi ini memanggil get_navigation_goal()
     db_goal = get_navigation_goal(db, goal_id)
     if not db_goal:
         raise HTTPException(status_code=404, detail="Navigation Goal not found")
