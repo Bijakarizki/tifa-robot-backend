@@ -60,7 +60,7 @@ def update_order_status(order_id: int, status_update: schemas.OrderUpdateStatus,
 
 @app.get("/navigation_goals/", response_model=List[schemas.NavigationGoalResponse], tags=["Navigation Goals"])
 def read_navigation_goals_by_status(
-    status: str,  # Dibuat wajib, karena robot selalu mencari status tertentu
+    status: str,
     skip: int = 0, 
     limit: int = 10, 
     db: Session = Depends(get_db)
@@ -78,8 +78,20 @@ def update_navigation_goal_status(
     db: Session = Depends(get_db)
 ):
     """
-    (UNTUK ROBOT) Mengubah status sebuah goal navigasi.
-    Contoh: dari 'ready' menjadi 'succeeded'.
+    (UNTUK ROBOT) Mengubah status sebuah goal navigasi (misal: 'ready' -> 'succeeded').
     Akan otomatis mengupdate status Order yang terhubung.
     """
     return crud.update_navigation_goal_status(db, goal_id=goal_id, new_status=status_update.status)
+
+# (ENDPOINT BARU) Endpoint khusus untuk robot mengupdate meta
+@app.patch("/navigation_goals/{goal_id}/meta", response_model=schemas.NavigationGoalResponse, tags=["Navigation Goals"])
+def update_navigation_goal_meta(
+    goal_id: int,
+    meta_update: schemas.NavigationGoalUpdateMeta,
+    db: Session = Depends(get_db)
+):
+    """
+    (UNTUK ROBOT) Mengupdate data JSON 'meta' pada sebuah goal.
+    Bisa dipakai untuk menyimpan log, sensor, atau status internal robot.
+    """
+    return crud.update_navigation_goal_meta(db, goal_id=goal_id, meta_data=meta_update)

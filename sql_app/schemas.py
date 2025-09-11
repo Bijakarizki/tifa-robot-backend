@@ -1,12 +1,11 @@
 # schemas.py
 
 from pydantic import BaseModel
-from typing import List
+from typing import List, Dict, Any
 from datetime import datetime
 from enum import Enum
 
-# --- (BARU) Skema untuk Tabel Koordinat ---
-
+# --- TableCoordinateBase tidak berubah ---
 class TableCoordinateBase(BaseModel):
     table_number: str
     goal_x: float
@@ -21,39 +20,36 @@ class TableCoordinateResponse(TableCoordinateBase):
     class Config:
         from_attributes = True
 
-# --- (BARU) Enum untuk validasi status ---
-
+# --- OrderStatus tidak berubah ---
 class OrderStatus(str, Enum):
     QUEUED = "queued"
     READY = "ready"
     SUCCEEDED = "succeeded"
-    
-# --- (DIUBAH) Skema untuk Pesanan ---
 
+# --- Skema Pesanan ---
 class OrderBase(BaseModel):
     table_number: str
 
 class OrderCreate(BaseModel):
     table_number: str
+    # 'meta' DIHAPUS dari sini, frontend tidak bisa mengirimnya lagi.
 
 class OrderCreateBulk(BaseModel):
     orders: List[OrderCreate]
 
 class OrderUpdateStatus(BaseModel):
-    status: OrderStatus # Menggunakan Enum untuk validasi
+    status: OrderStatus
 
 class OrderResponse(OrderBase):
     id: int
     status: str
-    goal_x: float
-    goal_y: float
-    goal_yaw: float
+    goal_x: float | None = None
+    goal_y: float | None = None
+    goal_yaw: float | None = None
     class Config:
         from_attributes = True
 
-# --- (DIUBAH) Skema untuk Navigation Goals ---
-
-# Enum disesuaikan dengan yang baru (meskipun isinya sama dengan OrderStatus)
+# --- Skema Navigation Goal ---
 class GoalStatus(str, Enum):
     QUEUED = "queued"
     READY = "ready"
@@ -62,6 +58,11 @@ class GoalStatus(str, Enum):
 class NavigationGoalUpdateStatus(BaseModel):
     status: GoalStatus
 
+# (BARU) Skema khusus untuk robot mengupdate kolom meta
+class NavigationGoalUpdateMeta(BaseModel):
+    meta: Dict[str, Any]
+
+# Pastikan 'meta' tetap ada di response agar bisa dilihat
 class NavigationGoalResponse(BaseModel):
     id: int
     order_id: int
@@ -69,8 +70,8 @@ class NavigationGoalResponse(BaseModel):
     goal_x: float
     goal_y: float
     goal_yaw: float
+    meta: Dict[str, Any] | None = None
     created_at: datetime
     updated_at: datetime
-
     class Config:
         from_attributes = True

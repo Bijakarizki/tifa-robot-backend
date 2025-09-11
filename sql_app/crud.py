@@ -30,32 +30,27 @@ def get_orders(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Order).order_by(models.Order.id.desc()).offset(skip).limit(limit).all()
 
 def create_orders_bulk(db: Session, orders_data: List[schemas.OrderCreate]):
-    """
-    Logika utama: Membuat pesanan dan navigation goal yang terhubung secara otomatis.
-    """
     created_orders = []
     for order_item in orders_data:
-        # 1. Cari koordinat dari tabel master
         coord = db.query(models.TableCoordinate).filter(models.TableCoordinate.table_number == order_item.table_number).first()
         if not coord:
             raise HTTPException(status_code=404, detail=f"Coordinates for table '{order_item.table_number}' not found.")
-            
-        # 2. Buat Order dengan status default 'queued' dan salin koordinat
+        
         db_order = models.Order(
             table_number=order_item.table_number,
-            status=schemas.OrderStatus.QUEUED.value, # Status awal
+            status=schemas.OrderStatus.QUEUED.value,
             goal_x=coord.goal_x,
             goal_y=coord.goal_y,
             goal_yaw=coord.goal_yaw
         )
         
-        # 3. Buat NavigationGoal yang terhubung secara otomatis
         db_goal = models.NavigationGoal(
-            order=db_order, # Ini menghubungkan keduanya
+            order=db_order,
             status=db_order.status,
             goal_x=db_order.goal_x,
             goal_y=db_order.goal_y,
-            goal_yaw=db_order.goal_yaw
+            goal_yaw=db_order.goal_yaw,
+            # 'meta' DIHAPUS dari sini, nilainya akan NULL saat dibuat
         )
         
         db.add(db_order)
@@ -109,6 +104,20 @@ def update_navigation_goal_status(db: Session, goal_id: int, new_status: schemas
     if db_goal.order:
         db_goal.order.status = new_status.value
 
+    db.commit()
+    db.refresh(db_goal)
+    return db_goal
+
+def update_navigation_goal_meta(db: Session, goal_id: int, meta_data: schemas.NavigationGoalUpdateMeta):
+    """
+    Memperbarui kolom 'meta' dari sebuah navigation goal.
+    Ini bisa digunakan oleh robot untuk menyimpan log atau status internal.
+    """
+    db_goal = get_navigation_goal(db, goal_id)
+    if not db_goal:
+        raise HTTPException(status_code=404, detail="Navigation Goal not found")
+    
+    db_goal.meta = meta_data.meta
     db.commit()
     db.refresh(db_goal)
     return db_goal
