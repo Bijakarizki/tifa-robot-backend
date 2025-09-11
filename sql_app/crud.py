@@ -1,113 +1,114 @@
+# crud.py
+
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from . import models, schemas
 from typing import List
 
-# === Fungsi untuk Tabel (Tables) ===
+# === (BARU) Fungsi untuk Tabel Koordinat ===
 
-def get_table(db: Session, table_id: int):
-    return db.query(models.Table).filter(models.Table.id == table_id).first()
-
-def get_table_by_name(db: Session, table_name: str):
-    return db.query(models.Table).filter(models.Table.table_number == table_name).first()
-
-def get_tables(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.Table).offset(skip).limit(limit).all()
-
-def create_table(db: Session, table: schemas.TableCreate):
-    table_number_to_add = table.table_number
-    predefined_table = db.query(models.PredefinedTable).filter(models.PredefinedTable.table_number == table_number_to_add).first()
-    if not predefined_table:
-        raise HTTPException(status_code=400, detail=f"Table '{table_number_to_add}' is not a valid predefined table.")
-    existing_table = get_table_by_name(db, table_name=table_number_to_add)
-    if existing_table:
-        raise HTTPException(status_code=400, detail=f"Table '{table_number_to_add}' has already been added.")
-    db_table = models.Table(table_number=predefined_table.table_number, coordinates=predefined_table.coordinates)
-    db.add(db_table)
+def create_table_coordinate(db: Session, coord: schemas.TableCoordinateCreate):
+    """Membuat data koordinat meja baru di tabel master."""
+    existing_coord = db.query(models.TableCoordinate).filter(models.TableCoordinate.table_number == coord.table_number).first()
+    if existing_coord:
+        raise HTTPException(status_code=400, detail=f"Table '{coord.table_number}' already has coordinates defined.")
+    
+    db_coord = models.TableCoordinate(**coord.model_dump())
+    db.add(db_coord)
     db.commit()
-    db.refresh(db_table)
-    return db_table
+    db.refresh(db_coord)
+    return db_coord
 
-def delete_table(db: Session, table_id: int):
-    db_table = db.query(models.Table).filter(models.Table.id == table_id).first()
-    if db_table:
-        db.delete(db_table)
-        db.commit()
-        return db_table
-    return None
+def get_table_coordinates(db: Session, skip: int = 0, limit: int = 100):
+    """Mengambil semua data koordinat meja."""
+    return db.query(models.TableCoordinate).offset(skip).limit(limit).all()
 
-# === Fungsi untuk Pesanan (Orders) ===
-
-def get_order(db: Session, order_id: int):
-    return db.query(models.Order).filter(models.Order.id == order_id).first()
+# === (DIUBAH TOTAL) Fungsi untuk Pesanan (Orders) ===
 
 def get_orders(db: Session, skip: int = 0, limit: int = 100):
+    """Mengambil daftar pesanan, diurutkan dari yang terbaru."""
     return db.query(models.Order).order_by(models.Order.id.desc()).offset(skip).limit(limit).all()
 
-def create_order(db: Session, order: schemas.OrderCreate):
-    db_order = models.Order(**order.model_dump(), status=0)
-    db.add(db_order)
-    db.commit()
-    db.refresh(db_order)
-    return db_order
-
-# (DIUBAH) Fungsi untuk membuat banyak pesanan sekaligus
-def create_orders_bulk(db: Session, orders: List[schemas.OrderCreate]):
+def create_orders_bulk(db: Session, orders_data: List[schemas.OrderCreate]):
+    """
+    Logika utama: Membuat pesanan dan navigation goal yang terhubung secara otomatis.
+    """
     created_orders = []
-    for order_data in orders:
-        # DIUBAH KEMBALI: Status diatur ke 0 (Siap Antar)
-        # Ini adalah status yang akan dibaca oleh robot.
-        db_order = models.Order(**order_data.model_dump(), status=0)
+    for order_item in orders_data:
+        # 1. Cari koordinat dari tabel master
+        coord = db.query(models.TableCoordinate).filter(models.TableCoordinate.table_number == order_item.table_number).first()
+        if not coord:
+            raise HTTPException(status_code=404, detail=f"Coordinates for table '{order_item.table_number}' not found.")
+            
+        # 2. Buat Order dengan status default 'queued' dan salin koordinat
+        db_order = models.Order(
+            table_number=order_item.table_number,
+            status=schemas.OrderStatus.QUEUED.value, # Status awal
+            goal_x=coord.goal_x,
+            goal_y=coord.goal_y,
+            goal_yaw=coord.goal_yaw
+        )
+        
+        # 3. Buat NavigationGoal yang terhubung secara otomatis
+        db_goal = models.NavigationGoal(
+            order=db_order, # Ini menghubungkan keduanya
+            status=db_order.status,
+            goal_x=db_order.goal_x,
+            goal_y=db_order.goal_y,
+            goal_yaw=db_order.goal_yaw
+        )
+        
         db.add(db_order)
+        db.add(db_goal)
         created_orders.append(db_order)
+
     db.commit()
-    for db_order in created_orders:
-        db.refresh(db_order)
+    for order in created_orders:
+        db.refresh(order)
     return created_orders
 
-# Fungsi untuk update status pesanan
-def update_order_status(db: Session, order_id: int, new_status: int):
-    db_order = get_order(db, order_id)
+def update_order_status(db: Session, order_id: int, new_status: schemas.OrderStatus):
+    """
+    Dipakai Frontend: Mengubah status Order DAN NavigationGoal terkait.
+    Contoh: Frontend mengubah status dari 'queued' -> 'ready'.
+    """
+    db_order = db.query(models.Order).filter(models.Order.id == order_id).first()
     if not db_order:
         raise HTTPException(status_code=404, detail="Order not found")
-    db_order.status = new_status
+        
+    # Update status di tabel Order
+    db_order.status = new_status.value
+    
+    # Update juga status di tabel NavigationGoal yang terhubung
+    if db_order.navigation_goal:
+        db_order.navigation_goal.status = new_status.value
+        
     db.commit()
     db.refresh(db_order)
     return db_order
 
-# === (FUNGSI BARU UNTUK NAVIGATION GOALS) ===
-
-def get_navigation_goal(db: Session, goal_id: int):
-    """Mengambil satu goal berdasarkan ID"""
-    return db.query(models.NavigationGoal).filter(models.NavigationGoal.id == goal_id).first()
+# === (DIUBAH TOTAL) Fungsi untuk Navigation Goals ===
 
 def get_navigation_goals_by_status(db: Session, status: str, skip: int = 0, limit: int = 100):
-    """Mengambil daftar goals berdasarkan status"""
+    """Dipakai Robot: Mengambil daftar tugas berdasarkan status (misal: 'ready')."""
     return db.query(models.NavigationGoal).filter(models.NavigationGoal.status == status).order_by(models.NavigationGoal.created_at.asc()).offset(skip).limit(limit).all()
 
-def get_all_navigation_goals(db: Session, skip: int = 0, limit: int = 100):
-    """Mengambil semua goals (diurutkan dari yang terbaru)"""
-    return db.query(models.NavigationGoal).order_by(models.NavigationGoal.id.desc()).offset(skip).limit(limit).all()
-
-def create_navigation_goal(db: Session, goal: schemas.NavigationGoalCreate):
-    """Membuat navigation goal baru (status otomatis 'queued')"""
-    db_goal = models.NavigationGoal(
-        **goal.model_dump(),
-        status="queued"  # Status default saat pembuatan
-    )
-    db.add(db_goal)
-    db.commit()
-    db.refresh(db_goal)
-    return db_goal
-
 def update_navigation_goal_status(db: Session, goal_id: int, new_status: schemas.GoalStatus):
-    """Memperbarui status navigation goal"""
-    db_goal = get_navigation_goal(db, goal_id)
+    """
+    Dipakai Robot: Mengubah status NavigationGoal DAN Order terkait.
+    Contoh: Robot mengubah status dari 'ready' -> 'succeeded'.
+    """
+    db_goal = db.query(models.NavigationGoal).filter(models.NavigationGoal.id == goal_id).first()
     if not db_goal:
         raise HTTPException(status_code=404, detail="Navigation Goal not found")
-    
-    # new_status akan berupa enum, kita ambil nilainya (string)
-    db_goal.status = new_status.value 
+
+    # Update status di tabel NavigationGoal
+    db_goal.status = new_status.value
+
+    # Update juga status di tabel Order yang terhubung
+    if db_goal.order:
+        db_goal.order.status = new_status.value
+
     db.commit()
     db.refresh(db_goal)
     return db_goal

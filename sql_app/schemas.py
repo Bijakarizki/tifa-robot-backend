@@ -1,74 +1,74 @@
+# schemas.py
+
 from pydantic import BaseModel
-from typing import List, Dict, Any
+from typing import List
 from datetime import datetime
 from enum import Enum
 
-# --- Skema untuk Tabel ---
+# --- (BARU) Skema untuk Tabel Koordinat ---
 
-class TableBase(BaseModel):
+class TableCoordinateBase(BaseModel):
     table_number: str
-    coordinates: str
-
-class TableCreate(BaseModel):
-    table_number: str
-
-class TableResponse(TableBase):
-    id: int
-    class Config:
-        from_attributes = True
-
-# --- Skema untuk Pesanan ---
-
-class OrderBase(BaseModel):
-    order_number: int
-    table_number: str
-
-class OrderCreate(OrderBase):
-    pass
-
-# (BARU) Skema untuk menerima daftar pesanan
-class OrderCreateBulk(BaseModel):
-    orders: List[OrderCreate]
-
-# (BARU) Skema untuk update status
-class OrderUpdateStatus(BaseModel):
-    status: int
-
-class OrderResponse(OrderBase):
-    id: int
-    status: int
-    class Config:
-        from_attributes = True
-
-
-# --- (SKEMA BARU UNTUK NAVIGATION GOALS) ---
-
-# Enum untuk validasi status
-class GoalStatus(str, Enum):
-    QUEUED = "queued"
-    RUNNING = "running"
-    DONE = "done"
-
-# Skema dasar untuk data input (tanpa ID atau timestamp)
-class NavigationGoalBase(BaseModel):
     goal_x: float
     goal_y: float
     goal_yaw: float
-    frame_id: str = "map"
-    meta: Dict[str, Any] | None = None
 
-# Skema untuk membuat data baru (mewarisi dari Base)
-class NavigationGoalCreate(NavigationGoalBase):
+class TableCoordinateCreate(TableCoordinateBase):
     pass
 
-# Skema untuk update status (mirip OrderUpdateStatus)
-class NavigationGoalUpdateStatus(BaseModel):
-    status: GoalStatus # Menggunakan Enum untuk validasi
-
-# Skema Response (apa yang dikembalikan API)
-class NavigationGoalResponse(NavigationGoalBase):
+class TableCoordinateResponse(TableCoordinateBase):
     id: int
-    status: str # Bisa juga pakai GoalStatus
+    class Config:
+        from_attributes = True
+
+# --- (BARU) Enum untuk validasi status ---
+
+class OrderStatus(str, Enum):
+    QUEUED = "queued"
+    READY = "ready"
+    SUCCEEDED = "succeeded"
+    
+# --- (DIUBAH) Skema untuk Pesanan ---
+
+class OrderBase(BaseModel):
+    table_number: str
+
+class OrderCreate(BaseModel):
+    table_number: str
+
+class OrderCreateBulk(BaseModel):
+    orders: List[OrderCreate]
+
+class OrderUpdateStatus(BaseModel):
+    status: OrderStatus # Menggunakan Enum untuk validasi
+
+class OrderResponse(OrderBase):
+    id: int
+    status: str
+    goal_x: float
+    goal_y: float
+    goal_yaw: float
+    class Config:
+        from_attributes = True
+
+# --- (DIUBAH) Skema untuk Navigation Goals ---
+
+# Enum disesuaikan dengan yang baru (meskipun isinya sama dengan OrderStatus)
+class GoalStatus(str, Enum):
+    QUEUED = "queued"
+    READY = "ready"
+    SUCCEEDED = "succeeded"
+
+class NavigationGoalUpdateStatus(BaseModel):
+    status: GoalStatus
+
+class NavigationGoalResponse(BaseModel):
+    id: int
+    order_id: int
+    status: str
+    goal_x: float
+    goal_y: float
+    goal_yaw: float
     created_at: datetime
     updated_at: datetime
 

@@ -1,46 +1,58 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, func
-from sqlalchemy.dialects.postgresql import JSONB
+# models.py
+
+from sqlalchemy import Column, Integer, String, Float, DateTime, func, ForeignKey
+from sqlalchemy.orm import relationship
 from .database import Base
 
-class Table(Base):
-    __tablename__ = "tables"
+# (BARU) Tabel master untuk menyimpan koordinat setiap meja.
+# Ini adalah tabel 'koor' yang Anda minta.
+class TableCoordinate(Base):
+    __tablename__ = "table_coordinates"
     id = Column(Integer, primary_key=True, index=True)
-    table_number = Column(String, unique=True, index=True)
-    coordinates = Column(String)
+    table_number = Column(String, unique=True, index=True, nullable=False)
+    goal_x = Column(Float, nullable=False)
+    goal_y = Column(Float, nullable=False)
+    goal_yaw = Column(Float, nullable=False)
 
+# (DIUBAH) Tabel Order sekarang memiliki status string dan koordinatnya sendiri.
 class Order(Base):
     __tablename__ = "orders"
     id = Column(Integer, primary_key=True, index=True)
-    order_number = Column(Integer, index=True)
-    table_number = Column(String)
-    status = Column(Integer, default=0)
+    table_number = Column(String, index=True)
+    
+    # Status diubah ke String, defaultnya 'queued' saat dibuat.
+    # Alur: queued -> ready -> succeeded
+    status = Column(String, index=True, default="queued")
 
-# Model untuk membaca dari tabel master 'predefined_tables'
-class PredefinedTable(Base):
-    __tablename__ = "predefined_tables"
-    id = Column(Integer, primary_key=True, index=True)
-    table_number = Column(String, unique=True, index=True)
-    coordinates = Column(String)
+    # Koordinat disalin ke sini dari TableCoordinate saat order dibuat.
+    goal_x = Column(Float)
+    goal_y = Column(Float)
+    goal_yaw = Column(Float)
 
-# (KELAS BARU YANG DITAMBAHKAN)
+    # Relasi one-to-one ke NavigationGoal
+    navigation_goal = relationship("NavigationGoal", back_populates="order", uselist=False, cascade="all, delete-orphan")
+
+# (DIUBAH) Tabel NavigationGoal sekarang terhubung langsung ke Order.
 class NavigationGoal(Base):
     __tablename__ = "navigation_goals"
-
     id = Column(Integer, primary_key=True, index=True)
     
-    # Status: "queued", "running", "done"
-    status = Column(String, index=True, default="queued")
+    # (KUNCI) Foreign Key yang menghubungkan goal ini ke sebuah order.
+    order_id = Column(Integer, ForeignKey("orders.id"), unique=True, nullable=False)
     
-    # Kolom Goal (menggunakan Float untuk desimal)
+    # Status: "queued", "ready", "succeeded" (disinkronkan dari Order)
+    status = Column(String, index=True)
+    
+    # Kolom Goal (disalin dari Order)
     goal_x = Column(Float)
     goal_y = Column(Float)
     goal_yaw = Column(Float)
     
     frame_id = Column(String, default="map")
     
-    # Meta (menggunakan JSONB bawaan Postgres)
-    meta = Column(JSONB, nullable=True)
-    
-    # Timestamp (otomatis diatur oleh database)
+    # Timestamp
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    # Relasi kembali ke Order
+    order = relationship("Order", back_populates="navigation_goal")
