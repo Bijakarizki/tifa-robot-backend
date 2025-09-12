@@ -36,25 +36,21 @@ def read_table_coordinates(skip: int = 0, limit: int = 100, db: Session = Depend
 
 @app.post("/orders/bulk", response_model=List[schemas.OrderResponse], tags=["Orders"])
 def create_orders_bulk(bulk_data: schemas.OrderCreateBulk, db: Session = Depends(get_db)):
-    """
-    Membuat beberapa pesanan sekaligus.
-    Aksi ini akan otomatis membuat Navigation Goal yang terhubung untuk setiap pesanan.
-    Status awal semua pesanan adalah 'queued'.
-    """
-    return crud.create_orders_bulk(db=db, orders_data=bulk_data.orders)
+    # (DIUBAH) Konversi hasil dari CRUD ke skema response
+    created_orders_models = crud.create_orders_bulk(db=db, orders_data=bulk_data.orders)
+    return [schemas.OrderResponse.from_orm_model(order) for order in created_orders_models]
 
 @app.get("/orders/", response_model=List[schemas.OrderResponse], tags=["Orders"])
 def read_orders(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    return crud.get_orders(db, skip=skip, limit=limit)
+    # (DIUBAH) Konversi hasil dari CRUD ke skema response
+    orders_models = crud.get_orders(db, skip=skip, limit=limit)
+    return [schemas.OrderResponse.from_orm_model(order) for order in orders_models]
 
 @app.patch("/orders/{order_id}/status", response_model=schemas.OrderResponse, tags=["Orders"])
 def update_order_status(order_id: int, status_update: schemas.OrderUpdateStatus, db: Session = Depends(get_db)):
-    """
-    (UNTUK FRONTEND) Mengubah status pesanan.
-    Contoh: dari 'queued' menjadi 'ready'.
-    Akan otomatis mengupdate status Navigation Goal yang terhubung.
-    """
-    return crud.update_order_status(db, order_id=order_id, new_status=status_update.status)
+    # (DIUBAH) Konversi hasil dari CRUD ke skema response
+    updated_order_model = crud.update_order_status(db, order_id=order_id, new_status=status_update.status)
+    return schemas.OrderResponse.from_orm_model(updated_order_model)
 
 # === (DIUBAH) API Navigation Goals ===
 

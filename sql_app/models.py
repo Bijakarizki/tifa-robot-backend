@@ -17,12 +17,13 @@ class Order(Base):
     __tablename__ = "orders"
     id = Column(Integer, primary_key=True, index=True)
     table_number = Column(String, index=True)
-    status = Column(String, index=True, default="queued")
+    # KOLOM STATUS DIHAPUS DARI SINI
+    # status = Column(String, index=True, default="queued") 
     goal_x = Column(Float)
     goal_y = Column(Float)
     goal_yaw = Column(Float)
     
-    # DI SINI KESALAHANNYA: 'back_pop_ulates' diubah menjadi 'back_populates'
+    # Relasi ini sekarang menjadi kunci untuk mendapatkan status
     navigation_goal = relationship("NavigationGoal", back_populates="order", uselist=False, cascade="all, delete-orphan")
 
 class NavigationGoal(Base):
@@ -30,7 +31,8 @@ class NavigationGoal(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     order_id = Column(Integer, ForeignKey("orders.id"), unique=True, nullable=False)
-    status = Column(String, index=True)
+    # INI ADALAH SATU-SATUNYA SUMBER KEBENARAN STATUS
+    status = Column(String, index=True, nullable=False)
     goal_x = Column(Float)
     goal_y = Column(Float)
     goal_yaw = Column(Float)
@@ -39,5 +41,4 @@ class NavigationGoal(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
-    # DI SINI JUGA KESALAHANNYA: 'back_pop_ulates' diubah menjadi 'back_populates'
     order = relationship("Order", back_populates="navigation_goal")
