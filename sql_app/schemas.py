@@ -1,13 +1,13 @@
 # schemas.py
 
-from __future__ import annotations # (BARU) Tambahkan ini di baris paling atas
-from pydantic import BaseModel, field_validator
+from __future__ import annotations
+from pydantic import BaseModel
 from typing import List, Dict, Any
 from datetime import datetime
 from enum import Enum
-from . import models # (BARU) Import models
+from . import models
 
-# --- TableCoordinateBase tidak berubah ---
+# --- TableCoordinate tidak berubah ---
 class TableCoordinateBase(BaseModel):
     table_number: str
     goal_x: float
@@ -43,17 +43,16 @@ class OrderUpdateStatus(BaseModel):
 
 class OrderResponse(OrderBase):
     id: int
-    # Kolom 'status' tetap ada di response API, meskipun tidak ada di model database Order
     status: str
     goal_x: float | None = None
     goal_y: float | None = None
     goal_yaw: float | None = None
+    # (DIUBAH) Tambahkan created_at ke skema respons
+    created_at: datetime 
 
     class Config:
         from_attributes = True
 
-    # (BARU) Fungsi factory untuk membuat skema response dari objek model SQLAlchemy
-    # Ini cara yang bersih untuk mengambil status dari relasi navigation_goal
     @classmethod
     def from_orm_model(cls, order: models.Order) -> OrderResponse:
         return cls(
@@ -62,10 +61,12 @@ class OrderResponse(OrderBase):
             status=order.navigation_goal.status if order.navigation_goal else "unknown",
             goal_x=order.goal_x,
             goal_y=order.goal_y,
-            goal_yaw=order.goal_yaw
+            goal_yaw=order.goal_yaw,
+            # (DIUBAH) Ambil nilai created_at dari model Order
+            created_at=order.created_at 
         )
 
-# --- Skema Navigation Goal (tidak ada perubahan) ---
+# --- Skema Navigation Goal tidak berubah ---
 class GoalStatus(str, Enum):
     QUEUED = "queued"
     READY = "ready"

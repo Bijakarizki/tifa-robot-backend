@@ -17,13 +17,14 @@ class Order(Base):
     __tablename__ = "orders"
     id = Column(Integer, primary_key=True, index=True)
     table_number = Column(String, index=True)
-    # KOLOM STATUS DIHAPUS DARI SINI
-    # status = Column(String, index=True, default="queued") 
     goal_x = Column(Float)
     goal_y = Column(Float)
     goal_yaw = Column(Float)
     
-    # Relasi ini sekarang menjadi kunci untuk mendapatkan status
+    # (DIUBAH) Tambahkan stempel waktu untuk membedakan pesanan
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
     navigation_goal = relationship("NavigationGoal", back_populates="order", uselist=False, cascade="all, delete-orphan")
 
 class NavigationGoal(Base):
@@ -31,7 +32,6 @@ class NavigationGoal(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     order_id = Column(Integer, ForeignKey("orders.id"), unique=True, nullable=False)
-    # INI ADALAH SATU-SATUNYA SUMBER KEBENARAN STATUS
     status = Column(String, index=True, nullable=False)
     goal_x = Column(Float)
     goal_y = Column(Float)
