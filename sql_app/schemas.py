@@ -27,6 +27,8 @@ class OrderStatus(str, Enum):
     QUEUED = "queued"
     READY = "ready"
     SUCCEEDED = "succeeded"
+    # (TAMBAHKAN BARIS INI)
+    COMPLETED = "completed"
 
 # --- Skema Pesanan ---
 class OrderBase(BaseModel):
